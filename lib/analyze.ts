@@ -19,6 +19,10 @@ export function reporterSlug(reporter: string): string {
 /**
  * Full opinion text from the Caselaw Access Project static mirror - no key, no
  * signup. Coverage ends around 2020, so recent cases return null.
+ *
+ * The head matter is included because briefs quote the syllabus and the
+ * headnotes as freely as the opinion itself, and a quote checker that only
+ * read the opinion body would call those real quotes missing.
  */
 export async function fetchOpinionText(
   c: Pick<VerifiedCitation, "reporter" | "volume" | "page">,
@@ -32,8 +36,10 @@ export async function fetchOpinionText(
     if (!res.ok) return null;
     const data = await res.json();
     const opinions: { text?: string }[] = data?.casebody?.opinions ?? [];
-    const text = opinions
-      .map((o) => o.text ?? "")
+    const text = [
+      data?.casebody?.head_matter ?? "",
+      ...opinions.map((o) => o.text ?? ""),
+    ]
       .join("\n\n")
       .trim();
     return text || null;

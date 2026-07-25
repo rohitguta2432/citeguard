@@ -1,7 +1,14 @@
 import type { ParsedCitation, VerifiedCitation, Verdict } from "@/lib/citations";
 import type { ClaimCheck } from "@/lib/analyze";
+import type { QuoteCheck } from "@/lib/quotes";
+import type { Treatment } from "@/lib/treatment";
 
-type Row = ParsedCitation & Partial<VerifiedCitation> & { claim?: ClaimCheck };
+export type Row = ParsedCitation &
+  Partial<VerifiedCitation> & {
+    claim?: ClaimCheck;
+    quotes?: QuoteCheck[];
+    treatment?: Treatment;
+  };
 
 const LOOK: Record<Verdict | "pending", { label: string; ring: string; dot: string; text: string }> = {
   pending: { label: "Checking", ring: "border-line", dot: "bg-mist", text: "text-mist" },
@@ -17,6 +24,74 @@ const CLAIM_LOOK: Record<ClaimCheck["status"], { label: string; text: string }> 
   unclear: { label: "Opinion does not cover it", text: "text-warn" },
   unavailable: { label: "Full text unavailable", text: "text-mist" },
 };
+
+const QUOTE_LOOK: Record<QuoteCheck["status"], { label: string; text: string }> = {
+  found: { label: "Quote is accurate", text: "text-ok" },
+  altered: { label: "Quote wording differs", text: "text-warn" },
+  missing: { label: "Quote is not in the opinion", text: "text-bad" },
+  unchecked: { label: "Quote not checked", text: "text-mist" },
+};
+
+function Quotes({ quotes }: { quotes: QuoteCheck[] }) {
+  return (
+    <div className="mt-3 space-y-3 border-t border-line pt-3">
+      {quotes.map((q, i) => (
+        <div key={i}>
+          <p
+            className={`text-xs font-medium tracking-wide uppercase ${
+              QUOTE_LOOK[q.status].text
+            }`}
+          >
+            {QUOTE_LOOK[q.status].label}
+          </p>
+          <blockquote className="mt-1.5 border-l-2 border-line pl-3 font-serif text-sm leading-relaxed">
+            &ldquo;{q.quote}&rdquo;
+          </blockquote>
+          <p className="mt-1.5 text-sm leading-relaxed text-mist">{q.note}</p>
+          {q.actual && (
+            <p className="mt-1.5 text-sm leading-relaxed text-mist">
+              Closest wording in the opinion:{" "}
+              <span className="font-serif text-white">{q.actual}</span>
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Later({ treatment }: { treatment: Treatment }) {
+  return (
+    <div className="mt-3 border-t border-line pt-3">
+      <p
+        className={`text-xs font-medium tracking-wide uppercase ${
+          treatment.status === "discussed" ? "text-warn" : "text-mist"
+        }`}
+      >
+        Later history
+      </p>
+      <p className="mt-1.5 text-sm leading-relaxed text-mist">{treatment.note}</p>
+      {treatment.opinions.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {treatment.opinions.map((o) => (
+            <li key={o.url} className="truncate text-xs text-mist">
+              <a
+                href={o.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-accent hover:underline"
+              >
+                {o.caseName}
+              </a>
+              {o.date && ` - ${o.date}`}
+              {o.court && ` - ${o.court}`}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export default function ResultCard({ row, delay }: { row: Row; delay: number }) {
   const look = LOOK[row.verdict ?? "pending"];
@@ -74,6 +149,9 @@ export default function ResultCard({ row, delay }: { row: Row; delay: number }) 
               )}
             </div>
           )}
+
+          {row.quotes && row.quotes.length > 0 && <Quotes quotes={row.quotes} />}
+          {row.treatment && <Later treatment={row.treatment} />}
         </div>
       </div>
     </li>

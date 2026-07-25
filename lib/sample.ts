@@ -4,17 +4,21 @@ ARGUMENT
 
 I. Plaintiff has stated a claim upon which relief can be granted.
 
-A complaint survives dismissal when it pleads factual content allowing the
-court to draw the reasonable inference that the defendant is liable.
-Ashcroft v. Iqbal, 556 U.S. 662, 678 (2009). The pleading standard does not
-require detailed factual allegations. Bell Atlantic Corp. v. Twombly,
-550 U.S. 544 (2007).
+A claim survives dismissal where it "pleads factual content that allows the
+court to draw the reasonable inference that the defendant is liable for the
+misconduct alleged." Ashcroft v. Iqbal, 556 U.S. 662, 678 (2009). The Court
+further cautioned that "threadbare recitals of the elements of a cause of
+action, supported by nothing more than conclusory statements, are always
+insufficient at the pleading stage." Id. at 678.
 
 II. The constitutional claims are properly pleaded.
 
 The Court has long protected individual liberty against state intrusion.
-Roe v. Wade, 410 U.S. 113 (1973). Segregation in public education was held
-unconstitutional in Brown v. Board of Education, 347 U.S. 483 (1954).
+Roe v. Wade, 410 U.S. 113 (1973). In striking down segregation the Court
+stated that "no child may be denied admission to any public institution of
+learning on account of race, and any statute providing otherwise is void from
+the moment of its enactment." Brown v. Board of Education, 347 U.S. 483
+(1954).
 
 III. Recent authority is directly on point.
 

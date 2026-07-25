@@ -1,5 +1,8 @@
 export type Verdict = "verified" | "fabricated" | "misattributed" | "error";
 
+/** "id" and "supra" are back-references to a case cited earlier in the brief. */
+export type CitationKind = "full" | "short" | "id" | "supra";
+
 export interface ParsedCitation {
   raw: string;
   volume: string;
@@ -8,6 +11,8 @@ export interface ParsedCitation {
   claimedCase: string | null;
   context: string;
   index: number;
+  pinCite: string | null;
+  kind: CitationKind;
 }
 
 export interface VerifiedCitation extends ParsedCitation {
@@ -119,25 +124,76 @@ const STOP = new Set([
   "board", "department", "dept", "commission", "district", "school", "national",
 ]);
 
+const contextAround = (text: string, index: number, length: number) =>
+  text.slice(Math.max(0, index - 300), index + length + 300).trim();
+
 export function extractCitations(text: string): ParsedCitation[] {
   const out: ParsedCitation[] = [];
   for (const m of text.matchAll(CITATION_RE)) {
     const index = m.index;
     const before = text.slice(Math.max(0, index - 160), index);
     const nameMatch = before.match(CASE_NAME_RE);
+    // "550 U.S. 544, 570" - the number after the comma is the pinpoint page.
+    const pin = text.slice(index + m[0].length).match(/^,\s*(\d{1,5})\b/);
     out.push({
       raw: m[0],
       volume: m[1],
       reporter: m[2].replace(/\s+/g, " "),
       page: m[3],
       claimedCase: nameMatch ? cleanCaseName(nameMatch[1].trim()) : null,
-      context: text
-        .slice(Math.max(0, index - 300), index + m[0].length + 300)
-        .trim(),
+      context: contextAround(text, index, m[0].length),
       index,
+      pinCite: pin ? pin[1] : null,
+      kind: "full",
     });
   }
   return out;
+}
+
+export type Extractor = "eyecite" | "builtin";
+
+const SERVICE =
+  process.env.CITEGUARD_EXTRACTOR ?? "http://127.0.0.1:4623";
+
+/**
+ * The Python service understands every reporter in the Bluebook and resolves
+ * "Id." and "supra" back to the case they point at. It is optional: when it is
+ * not running the built-in regex above handles the ordinary full citations, so
+ * CiteGuard still works with nothing installed but Node.
+ */
+export async function extractWithService(
+  text: string,
+): Promise<{ citations: ParsedCitation[]; extractor: Extractor }> {
+  try {
+    const res = await fetch(`${SERVICE}/extract`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error(String(res.status));
+
+    const data = (await res.json()) as { citations: Partial<ParsedCitation>[] };
+    const citations = data.citations
+      // A short form the service could not tie to a full citation has no
+      // volume or page. There is nothing to look up, so drop it rather than
+      // guess at a reporter page that would 404 and look fabricated.
+      .filter((c) => c.volume && c.reporter && c.page)
+      .map((c) => ({
+        raw: c.raw!,
+        volume: c.volume!,
+        reporter: c.reporter!,
+        page: c.page!,
+        claimedCase: c.claimedCase ?? null,
+        context: contextAround(text, c.index ?? 0, c.raw?.length ?? 0),
+        index: c.index ?? 0,
+        pinCite: c.pinCite?.replace(/^at\s+/, "") ?? null,
+        kind: c.kind ?? "full",
+      }));
+    return { citations, extractor: "eyecite" };
+  } catch {
+    return { citations: extractCitations(text), extractor: "builtin" };
+  }
 }
 
 export function slugToCaseName(slug: string): string {

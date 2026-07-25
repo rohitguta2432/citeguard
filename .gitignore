@@ -7,3 +7,6 @@ out
 next-env.d.ts
 .DS_Store
 .impeccable
+.claude
+service/.venv
+__pycache__

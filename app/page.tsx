@@ -1,16 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { ParsedCitation, VerifiedCitation } from "@/lib/citations";
-import type { ClaimCheck } from "@/lib/analyze";
 import { SAMPLE_BRIEF } from "@/lib/sample";
-import ResultCard from "./ResultCard";
-
-type Row = ParsedCitation & Partial<VerifiedCitation> & { claim?: ClaimCheck };
+import ResultCard, { type Row } from "./ResultCard";
 
 export default function Home() {
   const [text, setText] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
+  const [extractor, setExtractor] = useState<string | null>(null);
   const [deep, setDeep] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,14 +54,25 @@ export default function Home() {
       for (const line of lines) {
         if (!line.trim()) continue;
         const msg = JSON.parse(line);
-        if (msg.type === "citations") setRows(msg.citations);
-        if (msg.type === "verdict")
+        if (msg.type === "citations") {
+          setRows(msg.citations);
+          setExtractor(msg.extractor);
+        }
+
+        const patch: Partial<Row> | null =
+          msg.type === "verdict"
+            ? msg.result
+            : msg.type === "claim"
+              ? { claim: msg.claim }
+              : msg.type === "quotes"
+                ? { quotes: msg.quotes }
+                : msg.type === "treatment"
+                  ? { treatment: msg.treatment }
+                  : null;
+
+        if (patch)
           setRows((r) =>
-            r.map((row, i) => (i === msg.index ? { ...row, ...msg.result } : row)),
-          );
-        if (msg.type === "claim")
-          setRows((r) =>
-            r.map((row, i) => (i === msg.index ? { ...row, claim: msg.claim } : row)),
+            r.map((row, i) => (i === msg.index ? { ...row, ...patch } : row)),
           );
       }
     }
@@ -77,7 +85,10 @@ export default function Home() {
     misattributed: rows.filter((r) => r.verdict === "misattributed").length,
     verified: rows.filter((r) => r.verdict === "verified").length,
   };
-  const problems = counts.fabricated + counts.misattributed;
+  const allQuotes = rows.flatMap((r) => r.quotes ?? []);
+  const badQuotes = allQuotes.filter((q) => q.status === "missing").length;
+  const alteredQuotes = allQuotes.filter((q) => q.status === "altered").length;
+  const problems = counts.fabricated + counts.misattributed + badQuotes;
   const checked = rows.filter((r) => r.verdict).length;
 
   return (
@@ -93,8 +104,9 @@ export default function Home() {
         </div>
         <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-mist">
           Paste a brief. Every case citation is checked against the free
-          CourtListener database, so a case that does not exist cannot reach a
-          judge. No account, no API key.
+          CourtListener database, every quotation is matched against the real
+          opinion, and later cases that discuss overruling it are listed. No
+          account, no API key.
         </p>
       </header>
 
@@ -179,8 +191,23 @@ export default function Home() {
                 {counts.verified} verified &middot; {counts.fabricated} do not
                 exist &middot; {counts.misattributed} wrong case
               </div>
+              {allQuotes.length > 0 && (
+                <div className="mt-1">
+                  {allQuotes.length} quote{allQuotes.length === 1 ? "" : "s"}{" "}
+                  checked &middot; {badQuotes} not in the opinion &middot;{" "}
+                  {alteredQuotes} reworded
+                </div>
+              )}
             </div>
           </div>
+
+          {extractor === "builtin" && (
+            <p className="mt-4 text-xs leading-relaxed text-mist">
+              Found with the built-in extractor. Start the optional Python
+              service to also catch &ldquo;Id.&rdquo; and &ldquo;supra&rdquo;
+              back-references.
+            </p>
+          )}
 
           <ul className="mt-6 space-y-3">
             {rows.map((row, i) => (
