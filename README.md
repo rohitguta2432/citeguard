@@ -5,6 +5,8 @@ data and flags the ones that do not exist.
 
 No account. No API key. Runs on your own machine.
 
+![CiteGuard checking a brief: seven citations, two fabricated, one misattributed](screenshot.png)
+
 ## The problem
 
 Lawyers keep getting sanctioned for filing briefs that cite cases which were
